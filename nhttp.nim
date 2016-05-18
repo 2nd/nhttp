@@ -1,4 +1,4 @@
-import os, net, nativesockets, threadpool, times, strtabs, parseutils, tables, strutils
+import os, net, nativesockets, threadpool, times, strtabs, parseutils, tables, strutils, uri, cgi
 
 const SAFE = {net.SocketFlag.SafeDisconn}
 
@@ -60,7 +60,8 @@ type
   Request* = ref object
     m*: string     # method is a reserved word, (dealwithit)
     proto*: string
-    path*: string
+    uri*: uri.Uri
+    query*: strtabs.StringTableRef
     headers*: strtabs.StringTableRef
 
   Response* = ref object
@@ -83,6 +84,16 @@ proc hexLength(value: int): int =
   while n > 0:
     n = n shr 4
     result += 1
+
+proc parseQuery(query: string): strtabs.StringTableRef =
+  result = strtabs.newStringTable(strtabs.modeCaseInsensitive)
+  var position = 0
+  while position < query.len:
+    let start = position
+    position += query.skipUntil('=', position)
+    let i1 = query.skipUntil('&', position)
+    result[query.substr(start, position-1)] = query.substr(position+1, position+i1-1)
+    position += i1 + 1
 
 proc write*(r: Response, status: int) =
   r.s.send("HTTP/1.1 " & $status & REASON_PHRASES[status], SAFE)
@@ -141,7 +152,8 @@ proc handle(socket: Socket) {.gcsafe.} =
     req.m = m
     req.headers = headers
     req.proto = requestLine.substr(stop+1)
-    req.path = requestLine.substr(start, stop-1)
+    req.uri = uri.parseUri(requestLine.substr(start, stop-1))
+    req.query = parseQuery(req.uri.query)
 
     let res = new(Response)
     res.s = socket.s
