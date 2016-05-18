@@ -1,4 +1,4 @@
-import strtabs, net
+import strtabs, net, times
 
 const REASON_PHRASES = {
   100: "100 Continue\r\n",
@@ -63,6 +63,9 @@ proc write*(r: Response, status: int) =
   if not r.headers.hasKey("Content-Length") and not r.headers.hasKey("Transfer-Encoding"):
     r.chunked = true
     r.s.send("Transfer-Encoding: chunked\r\n", SAFE)
+
+  if not r.headers.hasKey("Date"):
+    r.s.send("Date: " & times.getTime().getGMTime().format("ddd, dd MMM yyyy HH:mm:ss") & " GMT\r\n", SAFE)
 
   r.s.send("\r\n")
 
