@@ -7,6 +7,7 @@ proc handler(req: nhttp.Request, res: nhttp.Response) =
   res.write("path=" & req.uri.path & "\n")
   res.write("method=" & req.m & "\n")
   res.write("proto=" & req.proto & "\n")
+
   if req.body != nil: res.write("body=" & req.body)
   for k, v in req.query: res.write("q_" & k & "=" & v & "\n")
 
@@ -71,3 +72,11 @@ suite "nhttp":
     let body = parse(res)
     check(body["method"] == "POST")
     check(body["body"] == 'z'.repeat(10000) & "az")
+
+  test "error for too many headers":
+    var headers = ""
+    for i in 0..19: headers.add("x-$1: $2\r\n" % [$i, $i])
+    headers.add("x-20: 20\r\n")
+
+    let res = httpclient.get("http://localhost:5802", headers)
+    check(res.status == "431 Request Header Fields Too Large")
