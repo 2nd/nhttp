@@ -2,6 +2,11 @@ import unittest, nhttp, httpclient, strutils, tables, strtabs
 
 # echo back the request to the response so that we can validate it
 proc handler(req: nhttp.Request, res: nhttp.Response) =
+  if req.uri.path == "/not_chunked":
+    res.headers["Location"] = "/over/9000"
+    res.write(301, "leto=atreides")
+    return
+
   for k, v in req.headers: res.headers["x-" & k] = v
   res.write(200)
   res.write("path=" & req.uri.path & "\n")
@@ -80,3 +85,8 @@ suite "nhttp":
 
     let res = httpclient.get("http://localhost:5802", headers)
     check(res.status == "431 Request Header Fields Too Large")
+
+  test "auto content-length write":
+    let res = httpclient.get("http://localhost:5802/not_chunked", maxRedirects=0)
+    check(res.status == "301 Moved Permanently")
+    check(parse(res)["leto"] == "atreides")

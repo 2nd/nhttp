@@ -74,3 +74,10 @@ proc write*(r: Response, data: string) {.inline.} =
   r.s.send(data.len.toHex(hexLength(data.len)) & "\r\n", SAFE)
   r.s.send(data, SAFE)
   r.s.send("\r\n", SAFE)
+
+# Write the header and body in a single command
+# Subsequent calls to any write overload will result in an invalid response
+proc write*(r: Response, status: int, data: string) {.inline.} =
+  r.headers["Content-Length"] = $data.len
+  r.write(status)
+  r.s.send(data, SAFE)
