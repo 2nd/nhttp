@@ -53,20 +53,25 @@ proc readLine(socket: Socket): TaintedString =
   socket.s.readLine(result, socket.readTimeout, SAFE)
 
 proc trySendError(socket: Socket, code: int) =
-  discard socket.s.trySend("HTTP/1.0 " & $code & REASON_PHRASES[code] & "Content-Length: 0\r\n\r\n")
+  discard socket.s.trySend("HTTP/1.1 " & REASON_PHRASES[code] & "Connection: Close\r\nContent-Length: 0\r\n\r\n")
 
 proc handle(socket: Socket) {.gcsafe.} =
   try:
     socket.s.getFd().setSockOptInt(6, 1, 1) # tcp_nodelay
-    let r = readRequest(socket)
-    if r.req == nil:
-      if r.code != 0: socket.trySendError(r.code)
-      return
+    while true:
+      let r = readRequest(socket)
+      if r.req == nil:
+        if r.code != 0: socket.trySendError(r.code)
+        return
 
-    let res = newResponse(socket.s)
-    socket.handler(r.req, res)
-    if res.chunked: res.s.send("0\r\n\r\n")
+      let req = r.req
+      let res = newResponse(socket.s)
+      socket.handler(req, res)
+      if res.chunked: res.s.send("0\r\n\r\n")
+      if req.headers.getOrDefault("Connection").toLower() == "close":
+        return
 
+  except net.TimeoutError: discard
   except:
     error("unhandled", getCurrentException())
     socket.trySendError(500)

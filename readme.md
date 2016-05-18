@@ -7,10 +7,10 @@ This server is our stopgap until the async <-> thread issues are resolved.
 ## Usage
 
 ```
-import nhttp
+import nhttp, strtabs
 
 proc handler(req: nhttp.Request, res: nhttp.Response) =
-  res.headers["content-type"] = "application/json"
+  res.headers["Content-Type"] = "application/json"
 
   # flushes the headers
   # must be called before writing a body
@@ -22,7 +22,7 @@ proc handler(req: nhttp.Request, res: nhttp.Response) =
 var s = nhttp.Server(
   reuse: true,
   handler: handler,
-  readTimeout: 1000,
+  readTimeout: 10000,
 )
 
 # optionally hook into ctrl-c and gracefully close the socket
