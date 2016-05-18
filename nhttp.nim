@@ -59,7 +59,7 @@ type
 
   Request* = ref object
     m*: string     # method is a reserved word, (dealwithit)
-    body: string
+    body*: string
     uri*: uri.Uri
     proto*: string
     query*: strtabs.StringTableRef
@@ -155,6 +155,25 @@ proc handle(socket: Socket) {.gcsafe.} =
     req.proto = requestLine.substr(stop+1)
     req.uri = uri.parseUri(requestLine.substr(start, stop-1))
     req.query = parseQuery(req.uri.query)
+
+    var unread = 0
+    if headers.getOrDefault("Content-Length").parseInt(unread) > 0:
+      var position = 0
+      var body = newString(unread)
+      body.setLen(0)
+      while unread > 0:
+        var buffer = newString(if unread > 8192: 8192 else: unread)
+        let read = socket.s.recv(cstring(buffer), buffer.len, socket.readTimeout)
+        if read <= 0: return
+        if read == buffer.len:
+          body.add(buffer)
+        else:
+          copyMem(addr body[position], addr buffer[0], read)
+
+        position += read
+        unread -= read
+
+      req.body = body
 
     let res = new(Response)
     res.s = socket.s

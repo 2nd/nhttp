@@ -7,6 +7,7 @@ proc handler(req: nhttp.Request, res: nhttp.Response) =
   res.write("path=" & req.uri.path & "\n")
   res.write("method=" & req.m & "\n")
   res.write("proto=" & req.proto & "\n")
+  if req.body != nil: res.write("body=" & req.body)
   for k, v in req.query: res.write("q_" & k & "=" & v & "\n")
 
 var s = nhttp.Server(
@@ -58,3 +59,15 @@ suite "nhttp":
     let body = parse(res)
     check(body["q_a"] == "b=3")
     check(body["q_c"] == "2")
+
+  test "post small body":
+    let res = httpclient.post("http://localhost:5802", body = "abc123")
+    let body = parse(res)
+    check(body["method"] == "POST")
+    check(body["body"] == "abc123")
+
+  test "post large body":
+    let res = httpclient.post("http://localhost:5802", body = 'z'.repeat(10000) & "az")
+    let body = parse(res)
+    check(body["method"] == "POST")
+    check(body["body"] == 'z'.repeat(10000) & "az")
