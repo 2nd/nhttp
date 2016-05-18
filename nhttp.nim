@@ -59,8 +59,9 @@ type
 
   Request* = ref object
     m*: string     # method is a reserved word, (dealwithit)
-    proto*: string
+    body: string
     uri*: uri.Uri
+    proto*: string
     query*: strtabs.StringTableRef
     headers*: strtabs.StringTableRef
 
@@ -92,7 +93,7 @@ proc parseQuery(query: string): strtabs.StringTableRef =
     let start = position
     position += query.skipUntil('=', position)
     let i1 = query.skipUntil('&', position)
-    result[query.substr(start, position-1)] = query.substr(position+1, position+i1-1)
+    result[query.substr(start, position-1)] = cgi.decodeUrl(query.substr(position+1, position+i1-1))
     position += i1 + 1
 
 proc write*(r: Response, status: int) =

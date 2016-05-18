@@ -47,6 +47,11 @@ suite "nhttp":
     check(body["q_over"] == "9000")
     check(body["q_scared"] == "yes")
 
+  test "encoded query":
+    let res = httpclient.get("http://localhost:5802/?over=90%2000")
+    let body = parse(res)
+    check(body["q_over"] == "90 00")
+
   # not sure what this should be, but at least it doesn't crash
   test "invalid query":
     let res = httpclient.get("http://localhost:5802/?a=b=3&c=2")
