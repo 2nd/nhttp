@@ -27,6 +27,7 @@ type
     proto*: string
     query*: strtabs.StringTableRef
     headers*: strtabs.StringTableRef
+    params*: strtabs.StringTableRef
 
   Response* = ref object
     chunked: bool

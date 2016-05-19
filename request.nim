@@ -40,6 +40,7 @@ proc readRequest(socket: Socket): tuple[req: Request, code: int] =
   req.proto = requestLine.substr(stop+1)
   req.uri = uri.parseUri(requestLine.substr(start, stop-1))
   req.query = parseQuery(req.uri.query)
+  req.params = strtabs.newStringTable(strtabs.modeCaseInsensitive)
 
   if m != "POST" and m != "PUT":
     return (req, 0)
