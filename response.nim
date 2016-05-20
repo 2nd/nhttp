@@ -51,10 +51,21 @@ proc hexLength(value: int): int =
     n = n shr 4
     result += 1
 
-proc newResponse(socket: net.Socket): Response =
+proc newResponse(socket: net.Socket, keepAlive: bool): Response =
   new(result)
   result.s = socket
+  result.keepAlive = keepAlive
   result.headers = strtabs.newStringTable(strtabs.modeCaseInsensitive)
+
+proc writeCommonHeaders(r: Response) =
+  if not r.headers.hasKey("Date"):
+    r.s.send("Date: " & times.getTime().getGMTime().format("ddd, dd MMM yyyy HH:mm:ss") & " GMT\r\n", SAFE)
+
+  if not r.headers.hasKey("Connection"):
+    if r.keepalive:
+      r.s.send("Connection: Keep-Alive\r\n")
+    else:
+      r.s.send("Connection: Close\r\n")
 
 proc write*(r: Response, status: int) =
   r.s.send("HTTP/1.1 " & REASON_PHRASES[status], SAFE)
@@ -64,9 +75,7 @@ proc write*(r: Response, status: int) =
     r.chunked = true
     r.s.send("Transfer-Encoding: chunked\r\n", SAFE)
 
-  if not r.headers.hasKey("Date"):
-    r.s.send("Date: " & times.getTime().getGMTime().format("ddd, dd MMM yyyy HH:mm:ss") & " GMT\r\n", SAFE)
-
+  r.writeCommonHeaders()
   r.s.send("\r\n")
 
 proc write*(r: Response, data: string) {.inline.} =

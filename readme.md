@@ -11,13 +11,7 @@ import nhttp, strtabs
 
 proc handler(req: nhttp.Request, res: nhttp.Response) =
   res.headers["Content-Type"] = "application/json"
-
-  # flushes the headers
-  # must be called before writing a body
-  res.write(200)
-
-  res.write("{...")
-  res.write("...}")
+  res.write(200, "{....}")
 
 var s = nhttp.Server(
   reuse: true,

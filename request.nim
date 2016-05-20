@@ -34,7 +34,7 @@ proc readRequest(socket: Socket): tuple[req: Request, code: int] =
   for i in countdown(stop, start):
     if requestLine[i] == ' ': stop = i; break
 
-  var req = new(Request)
+  let req = new(Request)
   req.m = m
   req.headers = headers
   req.proto = requestLine.substr(stop+1)

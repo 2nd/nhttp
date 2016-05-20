@@ -1,4 +1,4 @@
-import os, net, nativesockets, threadpool, times, strtabs, tables, strutils, uri
+import net, nativesockets, threadpool, strtabs, tables, strutils, uri
 
 const SAFE = {net.SocketFlag.SafeDisconn}
 
@@ -32,7 +32,7 @@ type
   Response* = ref object
     chunked: bool
     s*: net.Socket
-    wroteHeaders: bool
+    keepalive: bool
     headers*: strtabs.StringTableRef
 
 proc error(args: varargs[string]) {.gcsafe.}
@@ -58,26 +58,32 @@ proc trySendError(socket: Socket, code: int) =
 
 proc handle(socket: Socket) {.gcsafe.} =
   try:
+    var hits = 0
     socket.s.getFd().setSockOptInt(6, 1, 1) # tcp_nodelay
     while true:
       let r = readRequest(socket)
-      if r.req == nil:
+      if r.req.isNil:
         if r.code != 0: socket.trySendError(r.code)
         return
 
       let req = r.req
-      let res = newResponse(socket.s)
+      let v = req.proto[req.proto.len - 1]
+      let c = req.headers.getOrDefault("Connection").toLower()
+      let keepAlive = hits < 20 and ((v == '1' and c != "close") or (v == '0' and c == "keep-alive"))
+      let res = newResponse(socket.s, keepAlive)
       socket.handler(req, res)
       if res.chunked: res.s.send("0\r\n\r\n")
-      if req.headers.getOrDefault("Connection").toLower() == "close":
-        return
+
+      if hits == 20 or not keepAlive: return
+      hits += 1
 
   except net.TimeoutError: discard
   except:
     error("unhandled", getCurrentException())
     socket.trySendError(500)
   finally:
-    socket.s.close()
+    try: socket.s.close()
+    except: discard
 
 proc shutdown*(server: var Server) =
   if server.s != nil:
@@ -101,7 +107,7 @@ proc listen*(server: var Server, port: int) =
       if not socket.valid(): continue
       spawn socket.handle()
     except:
-      if server.s == nil: return
+      if server.s.isNil: return
       error("accept", getCurrentException())
 
 proc error(args: varargs[string]) =
